@@ -89,3 +89,165 @@ OK
 127.0.0.1:6379> INCRBYFLOAT counter 2.4
 "13.4"
 ```
+
+### 리스트
+
+리스트는 간단한 collection, stack, queue와 같이 동작할 수 있기 때문에 레디스에서는 매우 유연한 데이터 타입이다.</br>
+리스트 커멘드가 **원자적인 특성을 갖고 있어, 병렬 시스템이 큐에서 엘리멘트를 얻어낼 때 중복으로 얻지 않도록 보장**하고 있다.</br>
+또, **blocking 커멘드가 존재**한다. 즉, 클라이언트가 비어있는 리스트에 블로킹 커멘드를 실행할 때, 클라이언트는 리스트에 새로운 엘리먼트를 추가될 때까지 기다린다는 의미다.</br>
+자료구조는 연결리스트(linked list)로 되어 있어, 처음과 끝에서의 엘리먼트의 추가 및 삭제는 항상 O(1), 일정 시간의 성능을 가진다.</br>
+look up 연산은 O(N), 선형(linear) 시간이 소요된다.</br>
+가질 수 있는 최대 엘리먼트의 개수는 $2^{32}-1$ 이며, 40억 개 이상의 엘리먼트를 가질 수 있다는 것을 의미한다.</br>
+
+특징
+
+- 원자적인 특성
+- blocking command
+- linked list 자료구조 사용
+- 최대 엘리먼트의 개수는 $2^{32}-1$
+
+사용 사례
+
+- 이벤트 큐
+
+예제
+
+```
+// LPUSH : 리스트 처음에 데이터 추가 , return : 리스트의 길이
+// RPUSH : 리스트 마지막에 데이터 추가 , return : 리스트의 길이
+127.0.0.1:6379> LPUSH books "Clean Code"
+(integer) 1
+127.0.0.1:6379> RPUSH books "Code Complete"
+(integer) 2
+127.0.0.1:6379> LPUSH books "Peopleware"
+(integer) 3
+
+// LLEN : 리스트 길이
+// LINDEX : 특정 index 의 value 를 return
+127.0.0.1:6379> LLEN books
+(integer) 3
+127.0.0.1:6379> LINDEX books 1
+"Clean Code"
+
+// LPOP : 리스트의 첫 번째 엘리먼트를 삭제하고 리턴
+// RPOP : 리스트의 마지막 엘리먼트를 삭제하고 리턴
+// LRANGE : x 인덱스 에서 y index 까지 출력
+127.0.0.1:6379> LPOP books
+"Peopleware"
+127.0.0.1:6379> RPOP books
+"Code Complete"
+127.0.0.1:6379> LRANGE books 0 -1
+1) "Clean Code"
+127.0.0.1:6379> LRANGE books 0 3
+1) "Peopleware"
+2) "Clean Code"
+3) "Clean Code"
+4) "Code Complete"
+```
+
+### 해시
+
+해시에서 필드 이름과 값은 문자열이다. 따라서 해시는 문자열을 문자열로 매핑한다.</br>
+해시의 큰 장점은 메모리 최적화이다. 최적화는 hash-max-ziplist-entries, hash-max-ziplist-value  설정을 기반으로 한다. (4장에서 추가 설명)</br>
+해시는 내부적으로 ziplist, hash table 이 될 수 있다.</br>
+
+- ziplist
+    - 메모리 효율화에 목적을 둔 양쪽으로 연결된 연결리스트
+    - 정수를 일련의 문자열로 저장하지 않고 실제로 정수의 값으로 저장
+    - 메모리에 최적화 되어있다고 해서 일정한 시간 내로 검색이 수행되지 않는다.
+- hash table
+    - 일정한 시간내로 검색은 가능하지만, 메모리 최적화가 이루어지지 않는다.
+
+관련 자료 : [https://instagram-engineering.com/storing-hundreds-of-millions-of-simple-key-value-pairs-in-redis-1091ae80f74c](https://instagram-engineering.com/storing-hundreds-of-millions-of-simple-key-value-pairs-in-redis-1091ae80f74c)
+
+예제
+
+```
+// HSET : 주어진 키에 값 추가
+// HMSET : 공백으로 구분하여 다중 필드 값을 키에 저장
+// HINCRBY : 주어진 정수만큼 필드의 값을 증가
+127.0.0.1:6379> HSET movie "title" "The Godfather"
+(integer) 1
+127.0.0.1:6379> HMSET movie "year" 1972 "rating" 9.2 "watchers" 1000000
+OK
+127.0.0.1:6379> HINCRBY movie "watchers" 3 // value 가 string 인 경우 에러 발생((error) ERR hash value is not an integer)
+(integer) 1000003
+
+// HGET : 해당 키 값을 조회
+// HMGET : 다중 키 값을 조회
+127.0.0.1:6379> HGET movie "title"
+"The Godfather"
+127.0.0.1:6379> HMGET movie "title" "watchers"
+
+// HDEL : 해당 키 값을 삭제
+127.0.0.1:6379> HDEL movie "watchers"
+(integer) 1
+
+// HGETALL : 모든 key, value 쌍으로 이루어진 배열을 리턴
+127.0.0.1:6379> HGETALL movie
+1) "title"
+2) "The Godfather"
+3) "year"
+4) "1972"
+5) "rating"
+6) "9.2"
+```
+
+## 2. 고급 데이터 타입
+
+### 셋(set)
+
+레디스에서의 셋은 순서가 없고 동일한 문자열이 없는 컬렉션이다.</br>
+내부적으로 set 은 hash table 로 구현 되어 있다.</br>
+셋이 가질 수 있는 엘리먼트의 최대 개수는 $2^{32}-1$ 이다. 즉, 한 셋에 40억개 이상의 엘리먼트를 저장할 수 있다.</br>
+
+예시
+
+- 데이터 필터링 : 예를 들어, 주어진 한 도시에서 출발해서 다른 도시로 도착하는 모든 비행기를 필터링하기
+- 데이터 그룹핑 : 비슷한 제품을 보는 모든 사용자를 그룹핑하기
+- 엘리먼트십 확인 : 사용자가 블랙리스트에 있는지 확인하기
+
+예제
+
+```
+// 예제는 음악 어플리케이션을 기반으로하며 음악 어플리케이션의 모든 사용자는 선호하는 음악가 셋을 가진다.
+// 예제에서는 한 사용자 계정에서 선호하는 가수를 추가 및 삭제하고, 두 사용자가 공통적으로 선호하는 가수를 찾으며, 다른 사용자의 선호도를 기반으로 가수를 탐색한다.
+
+// SADD : 하나 이상의 엘리먼트를 추가
+127.0.0.1:6379> SADD user:max:favorite_aritst "Arcade Fire" "Arctic Monkeys" "Belle & Sebastian" "Lenine"
+(integer) 4
+127.0.0.1:6379> SADD user:hugo:favorite_arists "Daft Punk" "The Kooks" "Arctic Monkeys"
+(integer) 3
+
+// SINTER : 하나 이상의 셋을 받아 공통으로 존재하는 엘리먼트를 배열로 리턴
+127.0.0.1:6379> SINTER user:max:favorite_aritst user:hugo:favorite_arists
+1) "Arctic Monkeys"
+
+// SDIFF : 하나 이상의 셋을 메게변수로 받고, 첫번째 셋의 기준으로 교집합을 찾아 리턴 (메게변수의 순서가 중요)
+127.0.0.1:6379> SDIFF user:max:favorite_aritst user:hugo:favorite_arists
+1) "Belle & Sebastian"
+2) "Lenine"
+3) "Arcade Fire"
+
+// SUNION : 하나 이상의 셋을 메게변수로 받고, 모든 셋의 엘리먼트를 하나의 배열로 받아 리턴
+127.0.0.1:6379> SUNION user:max:favorite_aritst user:hugo:favorite_arists
+1) "Arcade Fire"
+2) "Daft Punk"
+3) "Arctic Monkeys"
+4) "Belle & Sebastian"
+5) "The Kooks"
+6) "Lenine"
+
+// SRANDMEMBER : 셋에서 무작위로 하나의 엘리먼트를 추출
+127.0.0.1:6379> SRANDMEMBER user:max:favorite_aritst
+"Belle & Sebastian"
+127.0.0.1:6379> SRANDMEMBER user:max:favorite_aritst
+"Lenine"
+
+// SMEMBERS : 모든 엘리먼트를 배열로 추출
+127.0.0.1:6379> SMEMBERS user:max:favorite_aritst
+1) "Belle & Sebastian"
+2) "Lenine"
+3) "Arctic Monkeys"
+4) "Arcade Fire"
+```
