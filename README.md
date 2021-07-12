@@ -644,3 +644,35 @@ MIGRATE host port key destination-db timeout [COPY] [REPACE]
 // COPY : 로컬 레디스 서버에 키를 유지하고 키를 저장할 레디스 서버에 키의 복사본을 생성
 // REPLCAE : 키를 저장할 레디스 서버에 이미 동일한 키가 존재하더라도 키를 교체한다.
 ```
+
+**AUTH**
+
+레디스에 연결할 수 있는 클라이언트를 authorization 하는데 사용된다.
+
+**SHUTDOWN**
+
+모든 클라이언트를 종료하고, 최대한 데이터를 저장하려고 한 후, 레디스 서버를 종료한다.
+
+예제
+
+```java
+127.0.0.1:6379> SHUTDOWN SAVE
+127.0.0.1:6379> SHUTDOWN NOSAVE
+
+// 2개의 매개변수가 있다.
+// SAVE : persistence 기능을 활성화 하지 않더라도 레디스가 dump.rdb 라는 파일에 모든 데이터를 저장하도록 강제
+// NOSAVE : persistence 기능이 활성화 되어 있더라도, 레디스 서버가 데이터를 디스크에 저장하지 않도록 한다.
+```
+
+**OBJECT ENCODING**
+
+주어진 키에서 사용 중인 인코딩 값을 리턴한다.
+
+예제
+
+```java
+127.0.0.1:6379> HSET myhash field value
+(integer) 1
+127.0.0.1:6379> object encoding myhash
+"ziplist"
+```
