@@ -676,3 +676,77 @@ MIGRATE host port key destination-db timeout [COPY] [REPACE]
 127.0.0.1:6379> object encoding myhash
 "ziplist"
 ```
+
+### 데이터 타입 최적화
+
+레디스에서 모든 데이터 타입은 메모리를 저장하거나 성능을 높이는 다양한 인코딩을 사용할 수 있다.</br>
+데이터 타입은 레디스의 서버 설정에 정의된 임계 값을 기반으로 다양한 인코딩을 사용한다.</br>
+보통 redis.conf 파일의 기본 값은 대부분의 애플리케이션에서 사용하기에 충분하다.</br>
+또한, CONFIG 커맨드나 커맨드 라인의 옵션으로 레디스 설정을 명세할 수 있다. (대부분의 방식은 설정 파일을 사용하는 것이다.)</br>
+
+**문자열**
+
+int : 64비트 부호 있는 정수로 문자열을 표현할 때 사용된다.</br>
+embstr : 40바이트 보다 작은 문자열을 표현할 때 사용된다.</br>
+raw : 40바이트보다 큰 문자열을 표현할 때 사용된다.</br>
+
+예제
+
+```
+127.0.0.1:6379> set str1 12345
+OK
+127.0.0.1:6379> object encoding str1
+"int"
+127.0.0.1:6379> set str2 "An embstr is small"
+OK
+127.0.0.1:6379> object encoding str2
+"embstr"
+127.0.0.1:6379> set str3 "A raw enconded String is anthing greater than 39 bytes"
+OK
+127.0.0.1:6379> object encoding str3
+"raw"
+```
+
+**리스트 (redis 버전별로 다른것 같음)**
+
+ziplist : 리스트의 크기의 엘리먼트가 list-max-ziplist-entries 설정보다 작고, 리스트의 개별 엘리먼트의 바이트가 list-max-ziplist-value 설정보다 작다면 사용된다.</br>
+linked-list : ziplist 에 해당되지 않으면 linked list 가 적용된다.</br>
+
+**셋**
+
+intset : 셋의 모든 엘리먼트가 정수이며, 셋의 개수가 set-max-intset-entries 설정보다 작으면 사용된다.</br>
+hashtable : 셋의 엘리먼트 중 하나라도 정수가 아니거나, 셋의 개수가 set-max-intset-entries 설정보다 크면 사용된다.</br>
+
+예제
+
+```
+127.0.0.1:6379> sadd set1 1 2
+(integer) 2
+127.0.0.1:6379> object encoding set1
+"intset"
+127.0.0.1:6379> sadd set2 1 2 3 4 5
+(integer) 5
+127.0.0.1:6379> object encoding set2
+"intset"
+127.0.0.1:6379> sadd set3 a
+(integer) 1
+127.0.0.1:6379> object encoding set3
+"hashtable"
+```
+
+**해시**
+
+ziplist : 해시의 필드 개수가 hash-max-ziplist-entries 설정보다 작고, 해시의 필드 이름과 값이 hash-max-ziplist-value 설정보다 작으면 사용된다.</br>
+hashtable : ziplist 에 해당되지 않으면 사용된다.</br>
+
+**정렬된 셋**
+
+ziplist : 정렬된 셋의 개수가 set-max-ziplist-entries 설정보다 작고, 정렬된 셋의 엘리먼트 값이 모두 zset-max-ziplist-value 설정보다 작으면 사용된다.</br>
+skiplist : ziplsit 에 해당되지 않으면 사용된다.</br>
+
+## 6. 일반적인 실수(실수 피하기)
+
+### 다중 레디스 데이터베이스
+
+레디스는 단일 스레드 기반이므로, 하나의 레디스 서버의 다중 데이터베이스는 하나의 CPU 코어만 사용한다.</br>
+반면, 동일 장비에 여러 개의 레디스 서버를 실행하면, 다중 CPU 코어의 장점을 취할 수 있다. (하지만 서비스의 용도, 구성에 따라 적절하게 선택하는게 필요하다.)</br>
