@@ -389,7 +389,7 @@ HyperLogLog는 좋은 성능, 낮은 계산 비용, 적은 메모리양으로 �
 
 고유 방문자 수 계산 : HyperLogLog vs Set
 
-<img src="/Redis-Essentials/blob/master/img/img-1.png" width="500px;">
+<img src="/img/img-1.png" width="500px;">
 
 예제
 
